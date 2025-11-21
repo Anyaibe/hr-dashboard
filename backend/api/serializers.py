@@ -9,7 +9,33 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 
 class EmployeeSerializer(serializers.ModelSerializer):
+    employee_id = serializers.ReadOnlyField()  # Add this - includes the @property field
+    full_name = serializers.ReadOnlyField()    # Add this - includes the @property field
     department_name = serializers.CharField(source='department.name', read_only=True)
+    
+    class Meta:
+        model = Employee
+        fields = [
+            'id',
+            'employee_id',      
+            'first_name',
+            'last_name',
+            'full_name',        
+            'email',
+            'phone',
+            'gender',
+            'date_of_birth',
+            'address',
+            'role',
+            'employment_type',
+            'department',
+            'department_name',  
+            'salary',
+            'hire_date',
+            'status',
+            'created_at',
+            'updated_at',
+        ]
     
     class Meta:
         model = Employee
