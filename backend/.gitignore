@@ -49,6 +49,7 @@ logs/
 .env
 .env.local
 .env.production
+.env.example
 
 # Coverage reports
 htmlcov/

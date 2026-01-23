@@ -8,12 +8,19 @@ import { Plus, Search, Filter, Download, Users, UserPlus, Building2, Calendar, M
 import { AddEmployeeForm } from "./add-employee-form";
 import { EditEmployeeForm } from "./edit-employee-form";
 import { EmployeeProfile } from "./employee-profile";
-import { AdvancedFilterModal, FilterState } from "./advanced-filter-modal";
+import { AdvancedFilterModal } from "./advanced-filter-modal";
 import { toast } from "sonner";
 import { apiService, Employee, Department } from "../../lib/api";
 
 interface EmployeeManagementProps {
   onEmployeeSelect: (id: string | null) => void;
+}
+
+export interface FilterState {
+  departments: string[];
+  employmentTypes: string[];
+  statuses: string[];
+  gender: string;
 }
 
 function ensureArray<T>(data: any): T[] {
@@ -35,68 +42,14 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
   const [filterDepartment, setFilterDepartment] = useState<string>("all");
   const [filterEmploymentType, setFilterEmploymentType] = useState<string>("all");
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  
-  // Advanced Filters State
   const [advancedFilters, setAdvancedFilters] = useState<FilterState>({
     departments: [],
     employmentTypes: [],
     statuses: [],
     gender: "all"
   });
-  
   const [actionMenuOpen, setActionMenuOpen] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Calculate how many filter TYPES are active (not total selections)
-  const getActiveFilterTypesCount = () => {
-    let count = 0;
-    if (advancedFilters.departments.length > 0) count++;
-    if (advancedFilters.employmentTypes.length > 0) count++;
-    if (advancedFilters.statuses.length > 0) count++;
-    if (advancedFilters.gender !== 'all') count++;
-    return count;
-  };
-
-  // Get filter summary for display
-  const getFilterSummary = () => {
-    const summaries: string[] = [];
-    
-    if (advancedFilters.departments.length > 0) {
-      summaries.push(`Department (${advancedFilters.departments.length})`);
-    }
-    if (advancedFilters.employmentTypes.length > 0) {
-      summaries.push(`Type (${advancedFilters.employmentTypes.length})`);
-    }
-    if (advancedFilters.statuses.length > 0) {
-      summaries.push(`Status (${advancedFilters.statuses.length})`);
-    }
-    if (advancedFilters.gender !== 'all') {
-      summaries.push(`Gender (${advancedFilters.gender})`);
-    }
-    
-    return summaries;
-  };
-
-  // Handle clearing all filters
-  const handleClearAllFilters = () => {
-    const emptyFilters: FilterState = {
-      departments: [],
-      employmentTypes: [],
-      statuses: [],
-      gender: 'all'
-    };
-    setAdvancedFilters(emptyFilters);
-    // This will trigger filterEmployees through useEffect
-  };
-
-  // Handle applying filters from modal
-  const handleApplyAdvancedFilters = (filters: FilterState) => {
-    setAdvancedFilters(filters);
-    // This will trigger filterEmployees through useEffect
-  };
-
-  const activeFilterCount = getActiveFilterTypesCount();
-  const filterSummaries = getFilterSummary();
 
   useEffect(() => {
     fetchEmployees();
@@ -110,18 +63,13 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        const target = event.target as HTMLElement;
-        if (!target.closest('button[aria-label="actions"]')) {
-          setActionMenuOpen(null);
-        }
+        setActionMenuOpen(null);
       }
     };
 
-    if (actionMenuOpen !== null) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [actionMenuOpen]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchEmployees = async () => {
     try {
@@ -151,7 +99,6 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
   const filterEmployees = () => {
     let filtered = employees;
 
-    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(emp => 
         `${emp.first_name} ${emp.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -161,17 +108,14 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
       );
     }
 
-    // Simple department dropdown filter
     if (filterDepartment !== "all") {
       filtered = filtered.filter(emp => emp.department.toString() === filterDepartment);
     }
 
-    // Simple employment type dropdown filter
     if (filterEmploymentType !== "all") {
       filtered = filtered.filter(emp => emp.employment_type === filterEmploymentType);
     }
 
-    // Advanced Filters
     if (advancedFilters.departments.length > 0) {
       filtered = filtered.filter(emp => 
         advancedFilters.departments.includes(emp.department.toString())
@@ -237,6 +181,10 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
       console.error('Error deleting employee:', error);
       toast.error('Failed to delete employee');
     }
+  };
+
+  const handleApplyAdvancedFilters = (filters: FilterState) => {
+    setAdvancedFilters(filters);
   };
 
   const handleExportCSV = () => {
@@ -312,6 +260,12 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
 
   return (
     <div className="space-y-6 p-6">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-2xl font-semibold text-gray-900">Employee Management</h1>
+        <p className="text-sm text-gray-500 mt-1">Manage employee information and profiles</p>
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-white border">
@@ -380,12 +334,12 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
             <div className="flex items-center gap-3">
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search by name, role, or ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-64 h-10"
+                  className="pl-9 w-64 h-10"
                 />
               </div>
 
@@ -415,43 +369,16 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
                 <option value="contract">Contract</option>
               </select>
 
-              {/* Filters Button with Badge */}
-              <div className="relative">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowAdvancedFilters(true)}
-                  className="h-10"
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters
-                </Button>
-                {activeFilterCount > 0 && (
-                  <div className="absolute -top-2 -right-2 flex items-center justify-center w-5 h-5 bg-red-500 rounded-full">
-                    <span className="text-white text-xs font-semibold">{activeFilterCount}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Active Filters Summary */}
-              {activeFilterCount > 0 && (
-                <div className="flex items-center gap-3 pl-3 border-l border-gray-300">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {filterSummaries.map((summary, index) => (
-                      <span key={index} className="text-sm text-gray-700 font-medium">
-                        {summary}
-                        {index < filterSummaries.length - 1 && <span className="text-gray-400 mx-2">•</span>}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    onClick={handleClearAllFilters}
-                    className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors whitespace-nowrap"
-                  >
-                    Clear
-                  </button>
-                </div>
-              )}
+              {/* Filters Button */}
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowAdvancedFilters(true)}
+                className="h-10"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+              </Button>
 
               {/* Export CSV Button */}
               <Button 
@@ -468,7 +395,7 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
               <Button 
                 size="sm"
                 onClick={() => setShowAddForm(true)}
-                className="h-10 !bg-black hover:!bg-gray-800 !text-white border-0"
+                className="h-10 bg-black hover:bg-gray-800 text-white"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Employee
@@ -514,8 +441,12 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
                       <TableCell className="font-medium text-gray-900">{employee.employee_id}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                            {employee.first_name.charAt(0)}{employee.last_name.charAt(0)}
+                          </div>
                           <div className="min-w-0">
-                            <div className="text-gray-900">{employee.full_name}</div>
+                            <div className="font-medium text-gray-900">{employee.full_name}</div>
+                            <div className="text-sm text-gray-500 truncate">{employee.email}</div>
                           </div>
                         </div>
                       </TableCell>
@@ -531,132 +462,51 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
                       </TableCell>
                       <TableCell>{getStatusBadge(employee.status)}</TableCell>
                       <TableCell className="text-right">
-                        <div className="relative inline-flex justify-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActionMenuOpen(actionMenuOpen === employee.id ? null : employee.id);
-                            }}
-                            className="h-8 w-8 rounded-md transition-colors duration-150 flex items-center justify-center"
-                            style={{ 
-                              border: 'none', 
-                              background: 'transparent',
-                              cursor: 'pointer'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = '#f3f4f6';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                            }}
+                        <div className="relative inline-block" ref={actionMenuOpen === employee.id ? dropdownRef : null}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setActionMenuOpen(actionMenuOpen === employee.id ? null : employee.id)}
+                            className="h-8 w-8 p-0 hover:bg-gray-100"
                           >
                             <MoreHorizontal className="h-4 w-4 text-gray-600" />
-                          </button>
+                          </Button>
                           
                           {actionMenuOpen === employee.id && (
-                            <>
-                              <div 
-                                className="fixed inset-0 z-40" 
-                                onClick={() => setActionMenuOpen(null)}
-                              />
-                      
-                              <div 
-                                ref={dropdownRef}
-                                className="absolute rounded-lg shadow-lg z-50"
-                                style={{ 
-                                  backgroundColor: '#ffffff',
-                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-                                  border: '1px solid #e5e7eb',
-                                  width: '150px',
-                                  ...(filteredEmployees.indexOf(employee) >= filteredEmployees.length - 2
-                                    ? { bottom: '100%', marginBottom: '4px', right: '35px' }
-                                    : { top: '100%', marginTop: '3px', right: '35px' })
-                                }}
-                              >
-                                <div style={{ padding: '4px' }}>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setViewingEmployee(employee);
-                                      setActionMenuOpen(null);
-                                    }}
-                                    className="flex items-center text-sm text-gray-700 transition-all duration-150"
-                                    style={{ 
-                                      backgroundColor: 'transparent',
-                                      borderRadius: '6px',
-                                      padding: '2px 16px',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      width: '100%',
-                                      justifyContent: 'flex-start',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.backgroundColor = '#f3f4f6';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.backgroundColor = 'transparent';
-                                    }}
-                                  >
-                                    <Eye className="h-3.5 w-4 text-gray-600 flex-shrink-0" style={{ marginRight: '14px' }} />
-                                    <span style={{ whiteSpace: 'nowrap', fontSize: '13.5px' }}>View Profile</span>
-                                  </button>
-                                  
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingEmployee(employee);
-                                      setActionMenuOpen(null);
-                                    }}
-                                    className="flex items-center text-sm text-gray-700 transition-all duration-150"
-                                    style={{ 
-                                      backgroundColor: 'transparent',
-                                      borderRadius: '6px',
-                                      padding: '2px 16px',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      width: '100%',
-                                      justifyContent: 'flex-start',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.backgroundColor = '#f3f4f6';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.backgroundColor = 'transparent';
-                                    }}
-                                  >
-                                    <Edit2 className="h-3.5 w-4 text-gray-600 flex-shrink-0" style={{ marginRight: '14px' }} />
-                                    <span style={{ whiteSpace: 'nowrap', fontSize: '13.5px' }}>Edit Details</span>
-                                  </button>
-                                  
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toast.info('Update Status feature coming soon');
-                                      setActionMenuOpen(null);
-                                    }}
-                                    className="flex items-center text-sm text-gray-700 transition-all duration-150"
-                                    style={{ 
-                                      backgroundColor: 'transparent',
-                                      borderRadius: '6px',
-                                      padding: '2px 16px',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      width: '100%',
-                                      justifyContent: 'flex-start'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.backgroundColor = '#f3f4f6';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.backgroundColor = 'transparent';
-                                    }}
-                                  >
-                                    <RefreshCw className="h-4 w-4 text-gray-600 flex-shrink-0" style={{ marginRight: '14px' }} />
-                                    <span style={{ whiteSpace: 'nowrap', fontSize: '13.5px' }}>Update Status</span>
-                                  </button>
-                                </div>
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                              <div className="py-1">
+                                <button
+                                  onClick={() => {
+                                    setViewingEmployee(employee);
+                                    setActionMenuOpen(null);
+                                  }}
+                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  <Eye className="h-4 w-4 mr-3 text-gray-500" />
+                                  View Profile
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setEditingEmployee(employee);
+                                    setActionMenuOpen(null);
+                                  }}
+                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  <Edit2 className="h-4 w-4 mr-3 text-gray-500" />
+                                  Edit Details
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    toast.info('Update Status feature coming soon');
+                                    setActionMenuOpen(null);
+                                  }}
+                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-3 text-gray-500" />
+                                  Update Status
+                                </button>
                               </div>
-                            </>
+                            </div>
                           )}
                         </div>
                       </TableCell>
@@ -709,7 +559,6 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
           onClose={() => setShowAdvancedFilters(false)}
           onApply={handleApplyAdvancedFilters}
           departments={departments}
-          initialFilters={advancedFilters}
         />
       )}
     </div>
