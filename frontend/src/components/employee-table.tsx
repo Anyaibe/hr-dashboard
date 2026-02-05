@@ -1,45 +1,89 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "./ui/card";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
-import { Search, Filter } from "lucide-react";
+import { Search } from "lucide-react";
+import { apiService, Employee, Department } from "../lib/api";
+import { toast } from "sonner";
 
-interface Employee {
-  id: string;
-  name: string;
-  department: string;
-  position: string;
-  salary: number;
-  bonus: number;
-  startDate: string;
+interface EmployeeWithPerformance extends Employee {
   performance: 'Excellent' | 'Good' | 'Average' | 'Needs Improvement';
 }
 
-const employeeData: Employee[] = [
-  { id: "001", name: "Sarah Johnson", department: "Engineering", position: "Senior Developer", salary: 115000, bonus: 15000, startDate: "2021-03-15", performance: "Excellent" },
-  { id: "002", name: "Michael Chen", department: "Engineering", position: "Tech Lead", salary: 135000, bonus: 20000, startDate: "2019-07-22", performance: "Excellent" },
-  { id: "003", name: "Emily Rodriguez", department: "Sales", position: "Account Manager", salary: 75000, bonus: 12000, startDate: "2022-01-10", performance: "Good" },
-  { id: "004", name: "David Thompson", department: "Marketing", position: "Marketing Manager", salary: 85000, bonus: 8000, startDate: "2020-11-05", performance: "Good" },
-  { id: "005", name: "Lisa Wang", department: "Engineering", position: "Junior Developer", salary: 75000, bonus: 5000, startDate: "2023-06-01", performance: "Good" },
-  { id: "006", name: "James Wilson", department: "Sales", position: "Sales Director", salary: 120000, bonus: 25000, startDate: "2018-09-12", performance: "Excellent" },
-  { id: "007", name: "Anna Martinez", department: "HR", position: "HR Manager", salary: 78000, bonus: 6000, startDate: "2021-08-20", performance: "Good" },
-  { id: "008", name: "Robert Kim", department: "Finance", position: "Financial Analyst", salary: 82000, bonus: 7000, startDate: "2022-04-18", performance: "Average" },
-  { id: "009", name: "Jennifer Lee", department: "Operations", position: "Operations Manager", salary: 88000, bonus: 9000, startDate: "2020-02-14", performance: "Good" },
-  { id: "010", name: "Thomas Anderson", department: "Engineering", position: "Principal Engineer", salary: 155000, bonus: 30000, startDate: "2017-05-03", performance: "Excellent" }
-];
+function ensureArray<T>(data: any): T[] {
+  if (Array.isArray(data)) return data;
+  if (data?.results) return data.results;
+  if (data?.data) return data.data;
+  return [];
+}
 
 export function EmployeeTable() {
+  const [employees, setEmployees] = useState<EmployeeWithPerformance[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("all");
   const [performanceFilter, setPerformanceFilter] = useState("all");
 
-  const filteredEmployees = employeeData.filter(employee => {
-    const matchesSearch = employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         employee.position.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDepartment = departmentFilter === "all" || employee.department === departmentFilter;
+  // Static performance data - keep as hardcoded for now
+  const performanceMap: { [key: number]: 'Excellent' | 'Good' | 'Average' | 'Needs Improvement' } = {
+    1: 'Excellent',
+    2: 'Excellent',
+    3: 'Good',
+    4: 'Good',
+    5: 'Good',
+    6: 'Excellent',
+    7: 'Good',
+    8: 'Average',
+    9: 'Good',
+    10: 'Excellent'
+  };
+
+  useEffect(() => {
+    fetchEmployees();
+    fetchDepartments();
+  }, []);
+
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getEmployees();
+      const employeeArray = ensureArray<Employee>(response.data);
+      
+      // Add performance data to employees
+      const employeesWithPerformance = employeeArray.map(emp => ({
+        ...emp,
+        performance: performanceMap[emp.id] || 'Good'
+      }));
+      
+      setEmployees(employeesWithPerformance);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      toast.error("Failed to load employees");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const response = await apiService.getDepartments();
+      const arr = ensureArray<Department>(response.data);
+      setDepartments(arr);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+    }
+  };
+
+  const filteredEmployees = employees.filter(employee => {
+    const matchesSearch = 
+      employee.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.role?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      employee.employee_id?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesDepartment = departmentFilter === "all" || employee.department_name === departmentFilter;
     const matchesPerformance = performanceFilter === "all" || employee.performance === performanceFilter;
     
     return matchesSearch && matchesDepartment && matchesPerformance;
@@ -53,6 +97,16 @@ export function EmployeeTable() {
       case "Needs Improvement": return "destructive";
       default: return "outline";
     }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: '2-digit', 
+      day: '2-digit' 
+    });
   };
 
   return (
@@ -75,12 +129,11 @@ export function EmployeeTable() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Departments</SelectItem>
-              <SelectItem value="Engineering">Engineering</SelectItem>
-              <SelectItem value="Sales">Sales</SelectItem>
-              <SelectItem value="Marketing">Marketing</SelectItem>
-              <SelectItem value="Operations">Operations</SelectItem>
-              <SelectItem value="HR">HR</SelectItem>
-              <SelectItem value="Finance">Finance</SelectItem>
+              {departments.map((dept) => (
+                <SelectItem key={dept.id} value={dept.name}>
+                  {dept.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <Select value={performanceFilter} onValueChange={setPerformanceFilter}>
@@ -113,38 +166,46 @@ export function EmployeeTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredEmployees.map((employee) => (
-              <TableRow key={employee.id}>
-                <TableCell>
-                  <div>
-                    <div className="font-medium">{employee.name}</div>
-                    <div className="text-sm text-muted-foreground">ID: {employee.id}</div>
-                  </div>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  Loading employees...
                 </TableCell>
-                <TableCell>{employee.department}</TableCell>
-                <TableCell>{employee.position}</TableCell>
-                <TableCell>${employee.salary.toLocaleString()}</TableCell>
-                <TableCell>${employee.bonus.toLocaleString()}</TableCell>
-                <TableCell className="font-medium">
-                  ${(employee.salary + employee.bonus).toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={getPerformanceBadgeVariant(employee.performance)}>
-                    {employee.performance}
-                  </Badge>
-                </TableCell>
-                <TableCell>{new Date(employee.startDate).toLocaleDateString()}</TableCell>
               </TableRow>
-            ))}
+            ) : filteredEmployees.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  No employees found matching your criteria.
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredEmployees.map((employee) => (
+                <TableRow key={employee.id}>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{employee.full_name}</div>
+                      <div className="text-sm text-muted-foreground">ID: {employee.employee_id}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>{employee.department_name}</TableCell>
+                  <TableCell>{employee.role || "N/A"}</TableCell>
+                  <TableCell>${parseFloat(employee.salary).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</TableCell>
+                  <TableCell>$0</TableCell>
+                  <TableCell className="font-medium">
+                    ${parseFloat(employee.salary).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getPerformanceBadgeVariant(employee.performance)}>
+                      {employee.performance}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{formatDate(employee.hire_date)}</TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
-      
-      {filteredEmployees.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          No employees found matching your criteria.
-        </div>
-      )}
     </Card>
   );
 }

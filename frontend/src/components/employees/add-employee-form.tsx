@@ -110,44 +110,28 @@ export function AddEmployeeForm({ onClose, onSubmit, departments }: AddEmployeeF
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center gap-4 mb-6">
-          {/* Step 1 - Only black when currentStep === 1 */}
           <div className="flex items-center gap-2">
-            <div 
-              className="flex items-center justify-center w-10 h-10 rounded-full"
-              style={{
-                backgroundColor: currentStep === 1 ? '#000000' : '#e5e7eb',
-                color: currentStep === 1 ? '#ffffff' : '#6b7280'
-              }}
-            >
+            <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+              currentStep >= 1 ? '!bg-black text-white' : '!bg-gray-200 text-gray-500'
+            }`}>
               <User className="h-5 w-5" />
             </div>
             <div className="text-left">
-              <div className={`text-xs ${currentStep === 1 ? 'text-black font-medium' : 'text-gray-500'}`}>
+              <div className={`text-xs ${currentStep === 1 ? '!text-black font-medium' : '!text-gray-500'}`}>
                 Step 1
               </div>
-              <div className={`text-sm ${currentStep === 1 ? 'font-medium' : 'text-gray-500'}`}>
+              <div className={`text-sm ${currentStep === 1 ? 'font-medium' : '!text-gray-500'}`}>
                 Personal Info
               </div>
             </div>
           </div>
-            
-          {/* Connecting line - Black when reached Step 2 */}
-          <div 
-            className="h-[2px] w-24"
-            style={{
-              backgroundColor: currentStep >= 2 ? '#000000' : '#e5e7eb'
-            }}
-          ></div>
-        
-          {/* Step 2 - Only black when currentStep === 2 */}
+
+          <div className={`h-[2px] w-24 ${currentStep >= 2 ? '!bg-black' : '!bg-gray-200'}`}></div>
+
           <div className="flex items-center gap-2">
-            <div 
-              className="flex items-center justify-center w-10 h-10 rounded-full"
-              style={{
-                backgroundColor: currentStep === 2 ? '#000000' : '#e5e7eb',
-                color: currentStep === 2 ? '#ffffff' : '#6b7280'
-              }}
-            >
+            <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+              currentStep >= 2 ? 'bg-black text-white' : 'bg-gray-200 text-gray-500'
+            }`}>
               <Briefcase className="h-5 w-5" />
             </div>
             <div className="text-left">
@@ -593,10 +577,7 @@ export function AddEmployeeForm({ onClose, onSubmit, departments }: AddEmployeeF
             >
               {currentStep === 1 ? 'Cancel' : 'Previous'}
             </Button>
-            <Button 
-              type="submit" 
-              disabled={loading} 
-              className="!bg-black !text-white hover:!bg-black/90 disabled:!bg-black/70">
+            <Button type="submit" disabled={loading} className="!bg-black hover:bg-black/90">
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

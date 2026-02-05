@@ -9,11 +9,33 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 
 class EmployeeSerializer(serializers.ModelSerializer):
+    employee_id = serializers.ReadOnlyField()  # Add this - includes the @property field
+    full_name = serializers.ReadOnlyField()    # Add this - includes the @property field
     department_name = serializers.CharField(source='department.name', read_only=True)
     
     class Meta:
         model = Employee
-        fields = '__all__'
+        fields = [
+            'id',
+            'employee_id',      # Computed property from model
+            'first_name',
+            'last_name',
+            'full_name',        # Computed property from model
+            'email',
+            'phone',
+            'gender',
+            'date_of_birth',
+            'address',
+            'role',
+            'employment_type',
+            'department',
+            'department_name',  # From related Department model
+            'salary',
+            'hire_date',
+            'status',
+            'created_at',
+            'updated_at',
+        ]
 
 
 class LeaveRequestSerializer(serializers.ModelSerializer):

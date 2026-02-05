@@ -271,7 +271,7 @@ export function EditEmployeeForm({ employee, onClose, onSubmit, departments }: E
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="!bg-black hover:!bg-black/90">
+            <Button type="submit" disabled={loading} className="!bg-black hover:bg-black/90">
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

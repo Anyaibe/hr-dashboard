@@ -63,13 +63,18 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setActionMenuOpen(null);
+        const target = event.target as HTMLElement;
+        if (!target.closest('button[aria-label="actions"]')) {
+          setActionMenuOpen(null);
+        }
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (actionMenuOpen !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [actionMenuOpen]);
 
   const fetchEmployees = async () => {
     try {
@@ -260,12 +265,6 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
 
   return (
     <div className="space-y-6 p-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-gray-900">Employee Management</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage employee information and profiles</p>
-      </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-white border">
@@ -334,12 +333,12 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
             <div className="flex items-center gap-3">
               {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                 <Input
                   placeholder="Search by name, role, or ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64 h-10"
+                  className="pl-10 w-64 h-10"
                 />
               </div>
 
@@ -395,7 +394,7 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
               <Button 
                 size="sm"
                 onClick={() => setShowAddForm(true)}
-                className="h-10 bg-black hover:bg-gray-800 text-white"
+                className="h-10 !bg-black hover:!bg-gray-800 !text-white border-0"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Employee
@@ -438,16 +437,17 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
                 ) : (
                   filteredEmployees.map((employee) => (
                     <TableRow key={employee.id} className="hover:bg-gray-50">
-                      <TableCell className="font-medium text-gray-900">{employee.employee_id}</TableCell>
+                      <TableCell className="font-medium text-gray-900">
+                        {employee.employee_id || `EMP${String(employee.id).padStart(3, '0')}`}
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                            {employee.first_name.charAt(0)}{employee.last_name.charAt(0)}
+                          <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
+                            {(employee.first_name?.charAt(0) || '?').toUpperCase()}{(employee.last_name?.charAt(0) || '?').toUpperCase()}
                           </div>
-                          <div className="min-w-0">
-                            <div className="font-medium text-gray-900">{employee.full_name}</div>
-                            <div className="text-sm text-gray-500 truncate">{employee.email}</div>
-                          </div>
+                          <span className="font-medium text-gray-900 text-sm">
+                            {employee.full_name || `${employee.first_name} ${employee.last_name}`}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell className="text-gray-700 capitalize">{employee.gender || '-'}</TableCell>
@@ -462,51 +462,142 @@ export function EmployeeManagement({ onEmployeeSelect }: EmployeeManagementProps
                       </TableCell>
                       <TableCell>{getStatusBadge(employee.status)}</TableCell>
                       <TableCell className="text-right">
-                        <div className="relative inline-block" ref={actionMenuOpen === employee.id ? dropdownRef : null}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setActionMenuOpen(actionMenuOpen === employee.id ? null : employee.id)}
-                            className="h-8 w-8 p-0 hover:bg-gray-100"
+                        <div className="relative inline-flex justify-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActionMenuOpen(actionMenuOpen === employee.id ? null : employee.id);
+                            }}
+                            className="h-8 w-8 rounded-md transition-colors duration-150 flex items-center justify-center"
+                            style={{ 
+                              border: 'none', 
+                              background: 'transparent',
+                              cursor: 'pointer'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f3f4f6';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'transparent';
+                            }}
                           >
                             <MoreHorizontal className="h-4 w-4 text-gray-600" />
-                          </Button>
+                          </button>
                           
                           {actionMenuOpen === employee.id && (
-                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
-                              <div className="py-1">
-                                <button
-                                  onClick={() => {
-                                    setViewingEmployee(employee);
-                                    setActionMenuOpen(null);
-                                  }}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                >
-                                  <Eye className="h-4 w-4 mr-3 text-gray-500" />
-                                  View Profile
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setEditingEmployee(employee);
-                                    setActionMenuOpen(null);
-                                  }}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                >
-                                  <Edit2 className="h-4 w-4 mr-3 text-gray-500" />
-                                  Edit Details
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    toast.info('Update Status feature coming soon');
-                                    setActionMenuOpen(null);
-                                  }}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                >
-                                  <RefreshCw className="h-4 w-4 mr-3 text-gray-500" />
-                                  Update Status
-                                </button>
+                            <>
+                              {/* Backdrop with fade-in */}
+                              <div 
+                                className="fixed inset-0 z-40" 
+                                onClick={() => setActionMenuOpen(null)}
+                                style={{
+                                  animation: 'fadeIn 200ms ease-out'
+                                }}
+                              />
+
+                              {/* Dropdown Menu with fade + slide transition */}
+                              <div 
+                                ref={dropdownRef}
+                                className="absolute rounded-lg shadow-lg z-50"
+                                style={{ 
+                                  backgroundColor: '#ffffff',
+                                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                                  border: '1px solid #e5e7eb',
+                                  width: '150px',
+                                  // Fade + slide animation
+                                  animation: filteredEmployees.indexOf(employee) >= filteredEmployees.length - 2
+                                    ? 'fadeSlideUp 250ms ease-out'
+                                    : 'fadeSlideDown 250ms ease-out',
+                                  // Smart positioning
+                                  ...(filteredEmployees.indexOf(employee) >= filteredEmployees.length - 2
+                                    ? { bottom: '100%', marginBottom: '4px', right: '35px' }
+                                    : { top: '100%', marginTop: '3px', right: '35px' })
+                                }}
+                              >
+                                <div style={{ padding: '4px' }}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setViewingEmployee(employee);
+                                      setActionMenuOpen(null);
+                                    }}
+                                    className="flex items-center text-sm text-gray-700 transition-all duration-150"
+                                    style={{ 
+                                      backgroundColor: 'transparent',
+                                      borderRadius: '6px',
+                                      padding: '2px 16px',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      width: '100%',
+                                      justifyContent: 'flex-start',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.backgroundColor = '#f3f4f6';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.backgroundColor = 'transparent';
+                                    }}
+                                  >
+                                    <Eye className="h-3.5 w-4 text-gray-600 flex-shrink-0" style={{ marginRight: '14px' }} />
+                                    <span style={{ whiteSpace: 'nowrap', fontSize: '13.5px' }}>View Profile</span>
+                                  </button>
+                                  
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEditingEmployee(employee);
+                                      setActionMenuOpen(null);
+                                    }}
+                                    className="flex items-center text-sm text-gray-700 transition-all duration-150"
+                                    style={{ 
+                                      backgroundColor: 'transparent',
+                                      borderRadius: '6px',
+                                      padding: '2px 16px',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      width: '100%',
+                                      justifyContent: 'flex-start',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.backgroundColor = '#f3f4f6';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.backgroundColor = 'transparent';
+                                    }}
+                                  >
+                                    <Edit2 className="h-3.5 w-4 text-gray-600 flex-shrink-0" style={{ marginRight: '14px' }} />
+                                    <span style={{ whiteSpace: 'nowrap', fontSize: '13.5px' }}>Edit Details</span>
+                                  </button>
+                                  
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toast.info('Update Status feature coming soon');
+                                      setActionMenuOpen(null);
+                                    }}
+                                    className="flex items-center text-sm text-gray-700 transition-all duration-150"
+                                    style={{ 
+                                      backgroundColor: 'transparent',
+                                      borderRadius: '6px',
+                                      padding: '2px 16px',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      width: '100%',
+                                      justifyContent: 'flex-start'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.backgroundColor = '#f3f4f6';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.backgroundColor = 'transparent';
+                                    }}
+                                  >
+                                    <RefreshCw className="h-4 w-4 text-gray-600 flex-shrink-0" style={{ marginRight: '14px' }} />
+                                    <span style={{ whiteSpace: 'nowrap', fontSize: '13.5px' }}>Update Status</span>
+                                  </button>
+                                </div>
                               </div>
-                            </div>
+                            </>
                           )}
                         </div>
                       </TableCell>
